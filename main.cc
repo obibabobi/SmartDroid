@@ -1,7 +1,6 @@
 #include <iostream>
 #include <hidapi/hidapi.h>
 #include <tclap/CmdLine.h>
-#include <type_traits>
 
 //USB identifiers
 const int vendor = 0x04d8;
