@@ -172,17 +172,13 @@ int readValue(const std::string& m, const std::string& device)
     } else if (m == "measure") {
         std::cout << (buf[1] == 1) << std::endl;
         return (buf[1] == 1);
-    } else if (m == "voltage") {
-        std::cout << bufToFloat(b2,2,5); 
-    } else if (m == "current") {
-        std::cout << bufToFloat(b2,11,5);
-    } else if (m == "power") {
-        std::cout << bufToFloat(b2,17,6);
-    } else if (m == "energy") {
-        std::cout << bufToFloat(b2,24,9);
-    } else {
-        __builtin_unreachable();
-    }
+    } 
+    else if (m == "voltage") std::cout << bufToFloat(b2,2,5); 
+    else if (m == "current") std::cout << bufToFloat(b2,11,5);
+    else if (m == "power")   std::cout << bufToFloat(b2,17,6);
+    else if (m == "energy")  std::cout << bufToFloat(b2,24,9);
+    else  __builtin_unreachable();
+
     std::cout << std::endl;
     return 0;
 }
@@ -191,7 +187,6 @@ int listDevices()
 {
     std::cout << "Listing devices:" << std::endl;
     std::cout << "================" << std::endl << std::endl;
-
 
     hid_device_info *info = hid_enumerate(vendor,product);
     if (info == nullptr) return -1;
