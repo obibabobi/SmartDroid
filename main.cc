@@ -189,13 +189,14 @@ int listDevices()
     std::cout << "================" << std::endl << std::endl;
 
     hid_device_info *info = hid_enumerate(vendor,product);
+    auto first = info;
     if (info == nullptr) return -1;
 
     while (info != nullptr) {
         std::wcout << info->path << " " << info->manufacturer_string << " " << info->product_string << std::endl;
         info = info->next;
     }
-    hid_free_enumeration(info);
 
+    hid_free_enumeration(first);
     return 0;
 }
