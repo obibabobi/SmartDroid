@@ -12,40 +12,31 @@ enum class Command {
     RequestStatus    = 0x81,
     RequestOnOff     = 0x82,
     RequestVersion   = 0x83,
-    NONE             = 0x00
 };
 
-class ReadType : public TCLAP::Constraint<std::string>
+template <typename T>
+class OneOf : public TCLAP::Constraint<T>
 {
-    virtual bool check(const std::string& value) const override {
-        return value == "voltage" || value == "current" || value == "raw" ||
-               value == "power"   || value == "energy" || 
-               value == "on" || value == "measure";
+    std::vector<T> strs;
+
+    virtual bool check(const T& value) const override {
+        for (auto i : strs)
+            if (value == i) return true;
+        return false;
     }
 
     virtual std::string description() const override {
-        return "voltage|power|current|energy|measure|on|raw";
+        std::string res;
+        for (auto i : strs) res += (i + "|");
+        res.resize(res.size()-1);
+        return res;
     }
 
     virtual std::string shortID() const override {
         return description();
     }
-};
-
-class ActionType : public TCLAP::Constraint<std::string>
-{
-    virtual bool check(const std::string& value) const override {
-        return value == "on" || value == "off" || 
-               value == "start" || value == "stop";
-    }               
-
-    virtual std::string description() const override {
-        return "on|off|start|stop";
-    }
-
-    virtual std::string shortID() const override {
-        return description();
-    }
+public:
+    OneOf(std::vector<T>&& lst) : strs(std::move(lst)) {}
 };
 
 //returns -1  if no devices were found, else 0
@@ -58,8 +49,8 @@ int main(int argc, char** argv)
     try {
         TCLAP::CmdLine cmd("Odroid SmartPower client", ' ', "0.1");
         TCLAP::ValueArg<std::string> device("d","device","Device to use", false, "", "usb-id");
-        TCLAP::ValueArg<std::string> meter("m","metric","Metric to output",false,"none",new ReadType());
-        TCLAP::ValueArg<std::string> action("a","action","Perform action",false,"none",new ActionType());
+        TCLAP::ValueArg<std::string> meter("m","metric","Metric to output",false,"none",new OneOf<std::string>({"voltage","power","current","energy","measure","on","raw"}));
+        TCLAP::ValueArg<std::string> action("a","action","Perform action",false,"none",new OneOf<std::string>({"on","off","start","stop"}));
         TCLAP::SwitchArg list("l","list","Lists available devices",false);
 
         cmd.add(device);
@@ -86,9 +77,10 @@ int main(int argc, char** argv)
 void sendCmd(hid_device* dev, Command cmd) {
     unsigned char buf[65] = {'\0'};
     buf[1] = static_cast<unsigned char>(cmd);
-    buf[2] = 0x0; //param?;
-    //TODO: Error checking!
-    hid_write(dev,buf,65);
+    
+    if (hid_write(dev,buf,65) == -1) {
+        std::cerr << "Error writing to USB device!" << std::endl;
+    }
 }
 
 bool smartRead(hid_device* dev, unsigned char* buf, size_t size) {
@@ -192,10 +184,9 @@ int listDevices()
     auto first = info;
     if (info == nullptr) return -1;
 
-    while (info != nullptr) {
+    do {
         std::wcout << info->path << " " << info->manufacturer_string << " " << info->product_string << std::endl;
-        info = info->next;
-    }
+    } while ( (info = info->next) );
 
     hid_free_enumeration(first);
     return 0;
