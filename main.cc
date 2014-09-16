@@ -68,17 +68,15 @@ int main(int argc, char** argv)
         cmd.parse(argc,argv);
     
         if (list.getValue()) return listDevices();
-        if (meter.getValue() == "none" && action.getValue() == "none") 
-        {
-            std::cerr << "You must either specify a metric to read o an action!" 
-                      << std::endl << "Please use -m or -a" << std::endl;
-            return -2;
-        }
 
-        if (meter.getValue() != "none") return readValue(meter.getValue(),device.getValue());
-        if (action.getValue() != "none") return performAction(action.getValue(),device.getValue());
+        if (meter.getValue() != "none") 
+            return readValue(meter.getValue(),device.getValue());
+        if (action.getValue() != "none") 
+            return performAction(action.getValue(),device.getValue());
         
-        __builtin_unreachable();
+        std::cerr << "You must either specify a metric to read o an action!" 
+                  << std::endl << "Please use -m or -a" << std::endl;
+        return -2;
         
     } catch (TCLAP::ArgException &e) { 
         std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; 
@@ -88,9 +86,19 @@ int main(int argc, char** argv)
 void sendCmd(hid_device* dev, Command cmd) {
     unsigned char buf[65] = {'\0'};
     buf[1] = static_cast<unsigned char>(cmd);
-    buf[2] = 0x0; //param;
+    buf[2] = 0x0; //param?;
     //TODO: Error checking!
     hid_write(dev,buf,65);
+}
+
+bool smartRead(hid_device* dev, unsigned char* buf, size_t size) {
+    size_t read = 0;
+    while (read < size) {
+        int tmp = hid_read(dev,buf+read,size-read);
+        if (tmp < 0) return false;
+        read += tmp;
+    }
+    return true;
 }
 
 int performAction(const std::string& action, const std::string& device) {
@@ -103,8 +111,11 @@ int performAction(const std::string& action, const std::string& device) {
 
     unsigned char status[65];
     sendCmd(dev,Command::RequestStatus);
-    //TODO: Error checking!
-    hid_read(dev,status,65);
+    
+    if (!smartRead(dev,status,64)) {
+        std::cerr << "Could not read device " << device;
+        return -3;
+    }
 
     if ((action == "on"  && status[2] != 1) ||
         (action == "off" && status[2] == 1)) {
@@ -142,8 +153,12 @@ int readValue(const std::string& m, const std::string& device)
     } else {
         sendCmd(dev,Command::RequestData);
     }
-    //TODO: error handling?
-    hid_read(dev,buf,65);
+    
+    if (!smartRead(dev,buf,64)) {
+        std::cerr << "Could not read device " << device;
+        return -3;
+    }
+    
     hid_close(dev);
     if (m == "raw") {
         for (auto c : buf) {
