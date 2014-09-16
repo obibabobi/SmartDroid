@@ -141,7 +141,7 @@ int readValue(const std::string& m, const std::string& device)
     }
 
     unsigned char buf[65] = {'\0'};
-    char* b2 = (char*)(buf);
+    char* b2 = reinterpret_cast<char*>(buf);
     if (m == "on" || m == "measure") {
         sendCmd(dev,Command::RequestStatus);
     } else {
