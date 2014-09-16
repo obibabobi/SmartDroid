@@ -73,7 +73,8 @@ int main(int argc, char** argv)
     }
 }
 
-void sendCmd(hid_device* dev, Command cmd) {
+void sendCmd(hid_device* dev, Command cmd) 
+{
     unsigned char buf[65] = {'\0'};
     buf[1] = static_cast<unsigned char>(cmd);
     
@@ -82,17 +83,20 @@ void sendCmd(hid_device* dev, Command cmd) {
     }
 }
 
-bool smartRead(hid_device* dev, unsigned char* buf, size_t size) {
+bool smartRead(hid_device* dev, unsigned char* buf, size_t size) 
+{
     size_t read = 0;
     while (read < size) {
         int tmp = hid_read(dev,buf+read,size-read);
         if (tmp < 0) return false;
         read += tmp;
     }
+
     return true;
 }
 
-int performAction(const std::string& action, const std::string& device) {
+int performAction(const std::string& action, const std::string& device) 
+{
     hid_device* dev = hid_open_path(device.c_str());
     if (dev == nullptr) {
         std::cerr << "Could not open device " << device;
@@ -120,7 +124,8 @@ int performAction(const std::string& action, const std::string& device) {
     return -1;
 }
 
-float bufToFloat(char* buf, int start, int len) {
+float bufToFloat(char* buf, int start, int len) 
+{
     std::stringstream str(std::string(buf+start,len));
     float val;
     str >> val;
