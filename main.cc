@@ -48,21 +48,20 @@ int main(int argc, char** argv)
 {
     try {
         TCLAP::CmdLine cmd("Odroid SmartPower client", ' ', "0.1");
-        TCLAP::ValueArg<std::string> device("d","device","Device to use", false, "", "usb-id");
-        TCLAP::ValueArg<std::string> meter("m","metric","Metric to output",false,"none",new OneOf<std::string>({"voltage","power","current","energy","measure","on","raw"}));
-        TCLAP::ValueArg<std::string> action("a","action","Perform action",false,"none",new OneOf<std::string>({"on","off","start","stop"}));
+        TCLAP::ValueArg<std::string> device("d","device","Device to use", false, "", "usb-id", cmd);
+        TCLAP::ValueArg<std::string> meter("m","metric","Metric to output",false,"",new OneOf<std::string>({"voltage","power","current","energy","measure","on","raw"}));
+        TCLAP::ValueArg<std::string> action("a","action","Perform action",false,"",new OneOf<std::string>({"on","off","start","stop"}));
         TCLAP::SwitchArg list("l","list","Lists available devices",false);
 
-        cmd.add(device);
         std::vector<TCLAP::Arg*> lst {&meter, &action, &list};
         cmd.xorAdd(lst);
         cmd.parse(argc,argv);
     
         if (list.getValue()) return listDevices();
 
-        if (meter.getValue() != "none") 
+        if (!meter.getValue().empty()) 
             return readValue(meter.getValue(),device.getValue());
-        if (action.getValue() != "none") 
+        if (!action.getValue().empty()) 
             return performAction(action.getValue(),device.getValue());
         
         std::cerr << "You must either specify a metric to read o an action!" 
