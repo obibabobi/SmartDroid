@@ -107,7 +107,6 @@ int performAction(const std::string& action, const std::string& device) {
         std::cerr << "Could not open device " << device;
         return -1;
     }
-    hid_set_nonblocking(dev,false);
 
     unsigned char status[65];
     sendCmd(dev,Command::RequestStatus);
@@ -144,7 +143,6 @@ int readValue(const std::string& m, const std::string& device)
         std::cerr << "Could not open device " << device;
         return -2;
     }
-    hid_set_nonblocking(dev,false);
 
     unsigned char buf[65] = {'\0'};
     char* b2 = (char*)(buf);
