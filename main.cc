@@ -41,8 +41,8 @@ public:
 
 //returns -1  if no devices were found, else 0
 int listDevices();
-int readValue(const std::string& m, const std::string& device);
-int performAction(const std::string& m, const std::string& device);
+int readValue(const std::string& m, hid_device* dev);
+int performAction(const std::string& m, hid_device* dev);
 
 int main(int argc, char** argv) 
 {
@@ -56,17 +56,39 @@ int main(int argc, char** argv)
         std::vector<TCLAP::Arg*> lst {&meter, &action, &list};
         cmd.xorAdd(lst);
         cmd.parse(argc,argv);
-    
+
         if (list.getValue()) return listDevices();
 
-        if (!meter.getValue().empty()) 
-            return readValue(meter.getValue(),device.getValue());
-        if (!action.getValue().empty()) 
-            return performAction(action.getValue(),device.getValue());
-        
-        std::cerr << "You must either specify a metric to read o an action!" 
-                  << std::endl << "Please use -m or -a" << std::endl;
-        return -2;
+        hid_device* dev;
+        if (device.getValue().empty()) {
+            hid_device_info *info = hid_enumerate(vendor,product);
+            if (info == nullptr) {
+                std::cerr << "No devices present!" << std::endl;
+                return -5;
+            }
+            if (info->next != nullptr) {
+                std::cerr << "Multiple devices! You must chose one" << std::endl;
+                return -4;
+            }
+            dev = hid_open_path(info->path);
+            hid_free_enumeration(info);
+        } else {
+            dev = hid_open_path(device.getValue().c_str());
+        }
+        if (dev == nullptr) {
+            std::cerr << "Could not open device " << std::endl;
+            return -2;
+        }
+
+        int ret = -3;
+        if (!meter.getValue().empty()) ret = readValue(meter.getValue(),dev);
+        if (!action.getValue().empty()) ret = performAction(action.getValue(),dev);
+        hid_close(dev);
+        if (ret == -3) {
+            std::cerr << "You must either specify a metric to read o an action!" 
+                      << std::endl << "Please use -m or -a" << std::endl;
+        }
+        return ret;
         
     } catch (TCLAP::ArgException &e) { 
         std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; 
@@ -95,20 +117,14 @@ bool smartRead(hid_device* dev, unsigned char* buf, size_t size)
     return true;
 }
 
-int performAction(const std::string& action, const std::string& device) 
+int performAction(const std::string& action, hid_device* dev) 
 {
-    hid_device* dev = hid_open_path(device.c_str());
-    if (dev == nullptr) {
-        std::cerr << "Could not open device " << device;
-        return -1;
-    }
-
     unsigned char status[65];
     sendCmd(dev,Command::RequestStatus);
     
     if (!smartRead(dev,status,64)) {
-        std::cerr << "Could not read device " << device;
-        return -3;
+        std::cerr << "Could not read device";
+        return -2;
     }
 
     if ((action == "on"  && status[2] != 1) ||
@@ -132,14 +148,8 @@ float bufToFloat(char* buf, int start, int len)
     return val;
 }
 
-int readValue(const std::string& m, const std::string& device) 
+int readValue(const std::string& m, hid_device* dev) 
 {
-    hid_device* dev = hid_open_path(device.c_str());
-    if (dev == nullptr) {
-        std::cerr << "Could not open device " << device;
-        return -2;
-    }
-
     unsigned char buf[65] = {'\0'};
     char* b2 = reinterpret_cast<char*>(buf);
     if (m == "on" || m == "measure") {
@@ -149,11 +159,10 @@ int readValue(const std::string& m, const std::string& device)
     }
     
     if (!smartRead(dev,buf,64)) {
-        std::cerr << "Could not read device " << device;
-        return -3;
+        std::cerr << "Could not read device ";
+        return -2;
     }
     
-    hid_close(dev);
     if (m == "raw") {
         for (auto c : buf) {
             if (c < 0x20 || c > 127 || c == 134) {
